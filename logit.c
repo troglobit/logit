@@ -27,12 +27,92 @@
 #include <string.h>
 #define SYSLOG_NAMES
 #include <syslog.h>
+#include <unistd.h>
+#include <sys/stat.h>
 
+static void create(char *path, mode_t mode, uid_t uid, gid_t gid)
+{
+	mknod(path, S_IFREG | mode, 0);
+	chown(path, uid, gid);
+}
 
-static int flogit(char *logfile, char *buf, size_t len)
+/*
+ * This function triggers a log rotates of @file when size >= @sz bytes
+ * At most @num old versions are kept and by default it starts gzipping
+ * .2 and older log files.  If gzip is not available in $PATH then @num
+ * files are kept uncompressed.
+ */
+static int logrotate(char *file, int num, off_t sz)
+{
+	int cnt;
+	struct stat st;
+
+	if (stat(file, &st))
+		return 1;
+
+	if (sz > 0 && S_ISREG(st.st_mode) && st.st_size > sz) {
+		if (num > 0) {
+			size_t len = strlen(file) + 10 + 1;
+			char   ofile[len];
+			char   nfile[len];
+
+			/* First age zipped log files */
+			for (cnt = num; cnt > 2; cnt--) {
+				snprintf(ofile, len, "%s.%d.gz", file, cnt - 1);
+				snprintf(nfile, len, "%s.%d.gz", file, cnt);
+
+				/* May fail because ofile doesn't exist yet, ignore. */
+				(void)rename(ofile, nfile);
+			}
+
+			for (cnt = num; cnt > 0; cnt--) {
+				snprintf(ofile, len, "%s.%d", file, cnt - 1);
+				snprintf(nfile, len, "%s.%d", file, cnt);
+
+				/* May fail because ofile doesn't exist yet, ignore. */
+				(void)rename(ofile, nfile);
+
+				if (cnt == 2 && !access(nfile, F_OK)) {
+					size_t len = 5 + strlen(nfile) + 1;
+					char cmd[len];
+
+					snprintf(cmd, len, "gzip %s", nfile);
+					system(cmd);
+
+					remove(nfile);
+				}
+			}
+
+			(void)rename(file, nfile);
+			create(file, st.st_mode, st.st_uid, st.st_gid);
+		} else {
+			truncate(file, 0);
+		}
+	}
+
+	return 0;
+}
+
+static int checksz(FILE *fp, int num, off_t sz)
+{
+	struct stat st;
+
+	if (sz <= 0)
+		return 0;
+
+	if (!fstat(fileno(fp), &st) && st.st_size > sz) {
+		fclose(fp);
+		return 1;
+	}
+
+	return 0;
+}
+
+static int flogit(char *logfile, int num, off_t sz, char *buf, size_t len)
 {
 	FILE *fp;
 
+reopen:
 	fp = fopen(logfile, "a");
 	if (!fp) {
 		syslog(LOG_ERR | LOG_PERROR, "Failed opening %s: %s", logfile, strerror(errno));
@@ -41,9 +121,20 @@ static int flogit(char *logfile, char *buf, size_t len)
 
 	if (buf[0]) {
 		fprintf(fp, "%s\n", buf);
+		if (checksz(fp, num, sz))
+			return logrotate(logfile, num, sz);
 	} else {
-		while ((fgets(buf, len, stdin)))
+		struct stat st;
+
+		while ((fgets(buf, len, stdin))) {
 			fputs(buf, fp);
+
+			if (checksz(fp, num, sz)) {
+				logrotate(logfile, num, sz);
+				buf[0] = 0;
+				goto reopen;
+			}
+		}
 	}
 
 	return fclose(fp);
@@ -94,13 +185,16 @@ static int usage(int code)
 {
 	fprintf(stderr, "Usage: logit [OPTIONS] [MESSAGE]\n"
 		"\n"
-		"Write MESSAGE (or stdin) to syslog or file, with logrotate\n"
+		"Write MESSAGE (or stdin) to syslog, or file (with logrotate)\n"
+		"\n"
+		"  -h       This help text\n"
+		"  -p PRIO  Priority (numeric or facility.level pair)\n"
+		"  -t TAG   Log using the specified tag (defaults to user name)\n"
+		"  -s       Log to stderr as well as the system log\n"
 		"\n"
 		"  -f FILE  File to write log messages to, instead of syslog\n"
-		"  -h       This help text\n"
-		"  -s       Log to stderr as well as the system log\n"
-		"  -t TAG   Log using the specified tag (defaults to user name)\n"
-		"  -p PRIO  Priority (numeric or facility.level pair)\n"
+		"  -n SIZE  Number of bytes before rotating, default: 200 kB\n"
+		"  -r NUM   Number of rotated files to keep, default: 5\n"
 		);
 
 	return code;
@@ -108,14 +202,15 @@ static int usage(int code)
 
 int main(int argc, char *argv[])
 {
-	int c, rc;
+	int c, rc, num = 5;
 	int facility = LOG_USER;
 	int level = LOG_INFO;
 	int log_opts = LOG_NOWAIT;
+	off_t size = 200 * 1024;
 	char *ident = NULL, *logfile = NULL;
 	char buf[512] = "";
 
-	while ((c = getopt(argc, argv, "f:hp:st:")) != EOF) {
+	while ((c = getopt(argc, argv, "f:hn:p:r:st:")) != EOF) {
 		switch (c) {
 		case 'f':
 			logfile = optarg;
@@ -124,9 +219,17 @@ int main(int argc, char *argv[])
 		case 'h':
 			return usage(0);
 
+		case 'n':
+			size = atoi(optarg);
+			break;
+
 		case 'p':
 			if (parse_prio(optarg, &facility, &level))
 				return usage(1);
+			break;
+
+		case 'r':
+			num = atoi(optarg);
 			break;
 
 		case 's':
@@ -160,7 +263,7 @@ int main(int argc, char *argv[])
 	openlog(ident, log_opts, facility);
 
 	if (logfile)
-		rc = flogit(logfile, buf, sizeof(buf));
+		rc = flogit(logfile, num, size, buf, sizeof(buf));
 	else
 		rc = logit(level, buf, sizeof(buf));
 

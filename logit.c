@@ -26,6 +26,12 @@
 #define SYSLOG_NAMES
 #include <syslog.h>
 
+static void stdlog(int level, char *buf, size_t len)
+{
+	while ((fgets(buf, len, stdin)))
+		syslog(level, "%s", buf);
+}
+
 static int parse_prio(char *arg, int *f, int *l)
 {
 	char *ptr;
@@ -61,6 +67,7 @@ static int usage(int code)
 		"Write MESSAGE (or stdin) to syslog or file, with logrotate\n"
 		"\n"
 		"  -h       This help text\n"
+		"  -s       Log to stderr as well as the system log\n"
 		"  -t TAG   Log using the specified tag (defaults to user name)\n"
 		"  -p PRIO  Priority (numeric or facility.level pair)\n"
 		);
@@ -73,9 +80,10 @@ int main(int argc, char *argv[])
 	int c;
 	int facility = LOG_USER;
 	int level = LOG_INFO;
+	int log_opts = LOG_NOWAIT;
 	char *ident = NULL, buf[512] = "";
 
-	while ((c = getopt(argc, argv, "hp:t:")) != EOF) {
+	while ((c = getopt(argc, argv, "hp:st:")) != EOF) {
 		switch (c) {
 		case 'h':
 			return usage(0);
@@ -83,6 +91,10 @@ int main(int argc, char *argv[])
 		case 'p':
 			if (parse_prio(optarg, &facility, &level))
 				return usage(1);
+			break;
+
+		case 's':
+			log_opts |= LOG_PERROR;
 			break;
 
 		case 't':
@@ -93,6 +105,8 @@ int main(int argc, char *argv[])
 			return usage(1);
 		}
 	}
+
+	openlog(ident, log_opts, facility);
 
 	if (optind < argc) {
 		size_t pos = 0, len = sizeof(buf);
@@ -106,12 +120,9 @@ int main(int argc, char *argv[])
 		}
 
 		syslog(facility | level, "%s", buf);
-		return 0;
-	}
+	} else
+		stdlog(level, buf, sizeof(buf));
 
-	openlog(ident, LOG_NOWAIT, facility);
-	while ((fgets(buf, sizeof(buf), stdin)))
-		syslog(level, "%s", buf);
 	closelog();
 
 	return 0;

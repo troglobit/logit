@@ -19,12 +19,37 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
+#include <getopt.h>
 #include <stdio.h>
 #include <syslog.h>
 
-int main(void)
+static int usage(int code)
 {
+	fprintf(stderr, "Usage: logit [OPTIONS] [MESSAGE]\n"
+		"\n"
+		"Write MESSAGE (or stdin) to syslog or file, with logrotate\n"
+		"\n"
+		"  -h  This help text\n"
+		);
+
+	return code;
+}
+
+int main(int argc, char *argv[])
+{
+	int c;
 	char buf[512];
+
+	while ((c = getopt(argc, argv, "h")) != EOF) {
+		switch (c) {
+		case 'h':
+			return usage(0);
+
+		default:
+			return usage(1);
+		}
+	}
 
 	while ((fgets(buf, sizeof(buf), stdin)))
 		syslog(LOG_USER | LOG_INFO, "%s", buf);

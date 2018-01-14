@@ -28,14 +28,14 @@
 #include <syslog.h>
 
 
-static void flogit(char *logfile, char *buf, size_t len)
+static int flogit(char *logfile, char *buf, size_t len)
 {
 	FILE *fp;
 
 	fp = fopen(logfile, "a");
 	if (!fp) {
 		syslog(LOG_ERR | LOG_PERROR, "Failed opening %s: %s", logfile, strerror(errno));
-		return;
+		return 1;
 	}
 
 	if (buf[0]) {
@@ -45,18 +45,20 @@ static void flogit(char *logfile, char *buf, size_t len)
 			fputs(buf, fp);
 	}
 
-	fclose(fp);
+	return fclose(fp);
 }
 
-static void logit(int level, char *buf, size_t len)
+static int logit(int level, char *buf, size_t len)
 {
 	if (buf[0]) {
 		syslog(level, "%s", buf);
-		return;
+		return 0;
 	}
 
 	while ((fgets(buf, len, stdin)))
 		syslog(level, "%s", buf);
+
+	return 0;
 }
 
 static int parse_prio(char *arg, int *f, int *l)
@@ -105,7 +107,7 @@ static int usage(int code)
 
 int main(int argc, char *argv[])
 {
-	int c;
+	int c, rc;
 	int facility = LOG_USER;
 	int level = LOG_INFO;
 	int log_opts = LOG_NOWAIT;
@@ -154,11 +156,11 @@ int main(int argc, char *argv[])
 	openlog(ident, log_opts, facility);
 
 	if (logfile)
-		flogit(logfile, buf, sizeof(buf));
+		rc = flogit(logfile, buf, sizeof(buf));
 	else
-		logit(level, buf, sizeof(buf));
+		rc = logit(level, buf, sizeof(buf));
 
 	closelog();
 
-	return 0;
+	return rc;
 }

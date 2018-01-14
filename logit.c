@@ -23,6 +23,7 @@
 #include <errno.h>
 #include <getopt.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #define SYSLOG_NAMES
 #include <syslog.h>
@@ -140,6 +141,9 @@ int main(int argc, char *argv[])
 			return usage(1);
 		}
 	}
+
+	if (!ident)
+		ident = getenv("LOGNAME") ?: getenv("USER");
 
 	if (optind < argc) {
 		size_t pos = 0, len = sizeof(buf);

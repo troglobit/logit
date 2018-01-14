@@ -22,7 +22,37 @@
 
 #include <getopt.h>
 #include <stdio.h>
+#include <string.h>
+#define SYSLOG_NAMES
 #include <syslog.h>
+
+static int parse_prio(char *arg, int *f, int *l)
+{
+	char *ptr;
+
+	ptr = strchr(arg, '.');
+	if (ptr) {
+		*ptr++ = 0;
+
+		for (int i = 0; facilitynames[i].c_name; i++) {
+			if (!strcmp(facilitynames[i].c_name, arg)) {
+				*f = facilitynames[i].c_val;
+				break;
+			}
+		}
+
+		arg = ptr;
+	}
+
+	for (int i = 0; prioritynames[i].c_name; i++) {
+		if (!strcmp(prioritynames[i].c_name, arg)) {
+			*l = prioritynames[i].c_val;
+			break;
+		}
+	}
+
+	return 0;
+}
 
 static int usage(int code)
 {
@@ -30,7 +60,8 @@ static int usage(int code)
 		"\n"
 		"Write MESSAGE (or stdin) to syslog or file, with logrotate\n"
 		"\n"
-		"  -h  This help text\n"
+		"  -h       This help text\n"
+		"  -p PRIO  Priority (numeric or facility.level pair)\n"
 		);
 
 	return code;
@@ -39,12 +70,19 @@ static int usage(int code)
 int main(int argc, char *argv[])
 {
 	int c;
+	int facility = LOG_USER;
+	int level = LOG_INFO;
 	char buf[512];
 
-	while ((c = getopt(argc, argv, "h")) != EOF) {
+	while ((c = getopt(argc, argv, "hp:")) != EOF) {
 		switch (c) {
 		case 'h':
 			return usage(0);
+
+		case 'p':
+			if (parse_prio(optarg, &facility, &level))
+				return usage(1);
+			break;
 
 		default:
 			return usage(1);
@@ -52,7 +90,7 @@ int main(int argc, char *argv[])
 	}
 
 	while ((fgets(buf, sizeof(buf), stdin)))
-		syslog(LOG_USER | LOG_INFO, "%s", buf);
+		syslog(facility | level, "%s", buf);
 
 	return 0;
 }

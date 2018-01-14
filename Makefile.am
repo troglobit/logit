@@ -1,6 +1,6 @@
 EXTRA_DIST      = README.md LICENSE
 bin_PROGRAMS    = logit
-logit_CFLAGS    = -W -Wall -Wextra
+logit_CFLAGS    = -W -Wall -Wextra -Wno-unused-result
 logit_SOURCES   = logit.c
 
 ## Target to run when building a release

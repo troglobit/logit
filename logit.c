@@ -31,10 +31,9 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-static void create(char *path, mode_t mode, uid_t uid, gid_t gid)
+static int create(char *path, mode_t mode, uid_t uid, gid_t gid)
 {
-	mknod(path, S_IFREG | mode, 0);
-	chown(path, uid, gid);
+	return mknod(path, S_IFREG | mode, 0) || chown(path, uid, gid);
 }
 
 /*
@@ -63,7 +62,7 @@ static int logrotate(char *file, int num, off_t sz)
 				snprintf(nfile, len, "%s.%d.gz", file, cnt);
 
 				/* May fail because ofile doesn't exist yet, ignore. */
-				(void)rename(ofile, nfile);
+				rename(ofile, nfile);
 			}
 
 			for (cnt = num; cnt > 0; cnt--) {
@@ -84,7 +83,7 @@ static int logrotate(char *file, int num, off_t sz)
 				}
 			}
 
-			(void)rename(file, nfile);
+			rename(file, nfile);
 			create(file, st.st_mode, st.st_uid, st.st_gid);
 		} else {
 			truncate(file, 0);
@@ -94,7 +93,7 @@ static int logrotate(char *file, int num, off_t sz)
 	return 0;
 }
 
-static int checksz(FILE *fp, int num, off_t sz)
+static int checksz(FILE *fp, off_t sz)
 {
 	struct stat st;
 
@@ -122,15 +121,13 @@ reopen:
 
 	if (buf[0]) {
 		fprintf(fp, "%s\n", buf);
-		if (checksz(fp, num, sz))
+		if (checksz(fp, sz))
 			return logrotate(logfile, num, sz);
 	} else {
-		struct stat st;
-
 		while ((fgets(buf, len, stdin))) {
 			fputs(buf, fp);
 
-			if (checksz(fp, num, sz)) {
+			if (checksz(fp, sz)) {
 				logrotate(logfile, num, sz);
 				buf[0] = 0;
 				goto reopen;

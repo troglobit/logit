@@ -20,11 +20,33 @@
  * THE SOFTWARE.
  */
 
+#include <errno.h>
 #include <getopt.h>
 #include <stdio.h>
 #include <string.h>
 #define SYSLOG_NAMES
 #include <syslog.h>
+
+
+static void flogit(char *logfile, char *buf, size_t len)
+{
+	FILE *fp;
+
+	fp = fopen(logfile, "a");
+	if (!fp) {
+		syslog(LOG_ERR | LOG_PERROR, "Failed opening %s: %s", logfile, strerror(errno));
+		return;
+	}
+
+	if (buf[0]) {
+		fprintf(fp, "%s\n", buf);
+	} else {
+		while ((fgets(buf, len, stdin)))
+			fputs(buf, fp);
+	}
+
+	fclose(fp);
+}
 
 static void logit(int level, char *buf, size_t len)
 {
@@ -71,6 +93,7 @@ static int usage(int code)
 		"\n"
 		"Write MESSAGE (or stdin) to syslog or file, with logrotate\n"
 		"\n"
+		"  -f FILE  File to write log messages to, instead of syslog\n"
 		"  -h       This help text\n"
 		"  -s       Log to stderr as well as the system log\n"
 		"  -t TAG   Log using the specified tag (defaults to user name)\n"
@@ -86,10 +109,15 @@ int main(int argc, char *argv[])
 	int facility = LOG_USER;
 	int level = LOG_INFO;
 	int log_opts = LOG_NOWAIT;
-	char *ident = NULL, buf[512] = "";
+	char *ident = NULL, *logfile = NULL;
+	char buf[512] = "";
 
-	while ((c = getopt(argc, argv, "hp:st:")) != EOF) {
+	while ((c = getopt(argc, argv, "f:hp:st:")) != EOF) {
 		switch (c) {
+		case 'f':
+			logfile = optarg;
+			break;
+
 		case 'h':
 			return usage(0);
 
@@ -124,7 +152,12 @@ int main(int argc, char *argv[])
 	}
 
 	openlog(ident, log_opts, facility);
-	logit(level, buf, sizeof(buf));
+
+	if (logfile)
+		flogit(logfile, buf, sizeof(buf));
+	else
+		logit(level, buf, sizeof(buf));
+
 	closelog();
 
 	return 0;

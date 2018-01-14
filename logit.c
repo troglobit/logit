@@ -26,8 +26,13 @@
 #define SYSLOG_NAMES
 #include <syslog.h>
 
-static void stdlog(int level, char *buf, size_t len)
+static void logit(int level, char *buf, size_t len)
 {
+	if (buf[0]) {
+		syslog(level, "%s", buf);
+		return;
+	}
+
 	while ((fgets(buf, len, stdin)))
 		syslog(level, "%s", buf);
 }
@@ -106,8 +111,6 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	openlog(ident, log_opts, facility);
-
 	if (optind < argc) {
 		size_t pos = 0, len = sizeof(buf);
 
@@ -118,11 +121,10 @@ int main(int argc, char *argv[])
 			pos += bytes;
 			len -= bytes;
 		}
+	}
 
-		syslog(facility | level, "%s", buf);
-	} else
-		stdlog(level, buf, sizeof(buf));
-
+	openlog(ident, log_opts, facility);
+	logit(level, buf, sizeof(buf));
 	closelog();
 
 	return 0;

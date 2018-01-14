@@ -61,6 +61,7 @@ static int usage(int code)
 		"Write MESSAGE (or stdin) to syslog or file, with logrotate\n"
 		"\n"
 		"  -h       This help text\n"
+		"  -t TAG   Log using the specified tag (defaults to user name)\n"
 		"  -p PRIO  Priority (numeric or facility.level pair)\n"
 		);
 
@@ -72,9 +73,9 @@ int main(int argc, char *argv[])
 	int c;
 	int facility = LOG_USER;
 	int level = LOG_INFO;
-	char buf[512];
+	char *ident = NULL, buf[512];
 
-	while ((c = getopt(argc, argv, "hp:")) != EOF) {
+	while ((c = getopt(argc, argv, "hp:t:")) != EOF) {
 		switch (c) {
 		case 'h':
 			return usage(0);
@@ -84,13 +85,19 @@ int main(int argc, char *argv[])
 				return usage(1);
 			break;
 
+		case 't':
+			ident = optarg;
+			break;
+
 		default:
 			return usage(1);
 		}
 	}
 
+	openlog(ident, LOG_NOWAIT, facility);
 	while ((fgets(buf, sizeof(buf), stdin)))
-		syslog(facility | level, "%s", buf);
+		syslog(level, "%s", buf);
+	closelog();
 
 	return 0;
 }

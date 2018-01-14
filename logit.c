@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
 	int c;
 	int facility = LOG_USER;
 	int level = LOG_INFO;
-	char *ident = NULL, buf[512];
+	char *ident = NULL, buf[512] = "";
 
 	while ((c = getopt(argc, argv, "hp:t:")) != EOF) {
 		switch (c) {
@@ -92,6 +92,21 @@ int main(int argc, char *argv[])
 		default:
 			return usage(1);
 		}
+	}
+
+	if (optind < argc) {
+		size_t pos = 0, len = sizeof(buf);
+
+		while (optind < argc) {
+			size_t bytes;
+
+			bytes = snprintf(&buf[pos], len, "%s ", argv[optind++]);
+			pos += bytes;
+			len -= bytes;
+		}
+
+		syslog(facility | level, "%s", buf);
+		return 0;
 	}
 
 	openlog(ident, LOG_NOWAIT, facility);

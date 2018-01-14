@@ -86,7 +86,8 @@ static int logrotate(char *file, int num, off_t sz)
 			rename(file, nfile);
 			create(file, st.st_mode, st.st_uid, st.st_gid);
 		} else {
-			truncate(file, 0);
+			if (truncate(file, 0))
+				syslog(LOG_ERR | LOG_PERROR, "Failed truncating %s during logrotate: %s", file, strerror(errno));
 		}
 	}
 

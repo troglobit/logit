@@ -31,6 +31,9 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
+static const char version_info[] = PACKAGE_NAME " v" PACKAGE_VERSION;
+
+
 static int create(char *path, mode_t mode, uid_t uid, gid_t gid)
 {
 	return mknod(path, S_IFREG | mode, 0) || chown(path, uid, gid);
@@ -182,7 +185,7 @@ static int parse_prio(char *arg, int *f, int *l)
 
 static int usage(int code)
 {
-	fprintf(stderr, "Usage: logit [OPTIONS] [MESSAGE]\n"
+	fprintf(stderr, "Usage: %s [OPTIONS] [MESSAGE]\n"
 		"\n"
 		"Write MESSAGE (or stdin) to syslog, or file (with logrotate)\n"
 		"\n"
@@ -194,7 +197,9 @@ static int usage(int code)
 		"  -f FILE  File to write log messages to, instead of syslog\n"
 		"  -n SIZE  Number of bytes before rotating, default: 200 kB\n"
 		"  -r NUM   Number of rotated files to keep, default: 5\n"
-		);
+		"  -v        Show program version\n"
+		"\n"
+		"Bug report address: %s\n", PACKAGE, PACKAGE_BUGREPORT);
 
 	return code;
 }
@@ -209,7 +214,7 @@ int main(int argc, char *argv[])
 	char *ident = NULL, *logfile = NULL;
 	char buf[512] = "";
 
-	while ((c = getopt(argc, argv, "f:hn:p:r:st:")) != EOF) {
+	while ((c = getopt(argc, argv, "f:hn:p:r:st:v")) != EOF) {
 		switch (c) {
 		case 'f':
 			logfile = optarg;
@@ -238,6 +243,10 @@ int main(int argc, char *argv[])
 		case 't':
 			ident = optarg;
 			break;
+
+		case 'v':	/* version */
+			fprintf(stderr, "%s\n", version_info);
+			return 0;
 
 		default:
 			return usage(1);

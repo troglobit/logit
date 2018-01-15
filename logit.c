@@ -197,7 +197,7 @@ static int usage(int code)
 		"  -f FILE  File to write log messages to, instead of syslog\n"
 		"  -n SIZE  Number of bytes before rotating, default: 200 kB\n"
 		"  -r NUM   Number of rotated files to keep, default: 5\n"
-		"  -v        Show program version\n"
+		"  -v       Show program version\n"
 		"\n"
 		"Bug report address: %s\n", PACKAGE, PACKAGE_BUGREPORT);
 

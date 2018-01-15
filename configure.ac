@@ -1,4 +1,4 @@
-AC_INIT(logit, 1.0-beta1, https://github.com/troglobit/logit/issues)
+AC_INIT(logit, 1.0, https://github.com/troglobit/logit/issues)
 AM_INIT_AUTOMAKE([1.11 foreign])
 AM_SILENT_RULES([yes])
 

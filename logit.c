@@ -65,7 +65,7 @@ static int logrotate(char *file, int num, off_t sz)
 				snprintf(nfile, len, "%s.%d.gz", file, cnt);
 
 				/* May fail because ofile doesn't exist yet, ignore. */
-				rename(ofile, nfile);
+				(void)rename(ofile, nfile);
 			}
 
 			for (cnt = num; cnt > 0; cnt--) {
@@ -86,8 +86,10 @@ static int logrotate(char *file, int num, off_t sz)
 				}
 			}
 
-			rename(file, nfile);
-			create(file, st.st_mode, st.st_uid, st.st_gid);
+			if (rename(file, nfile))
+				(void)truncate(file, 0);
+			else
+				create(file, st.st_mode, st.st_uid, st.st_gid);
 		} else {
 			if (truncate(file, 0))
 				syslog(LOG_ERR | LOG_PERROR, "Failed truncating %s during logrotate: %s", file, strerror(errno));
@@ -125,11 +127,13 @@ reopen:
 
 	if (buf[0]) {
 		fprintf(fp, "%s\n", buf);
+		fsync(fileno(fp));
 		if (checksz(fp, sz))
 			return logrotate(logfile, num, sz);
 	} else {
 		while ((fgets(buf, len, stdin))) {
 			fputs(buf, fp);
+			fsync(fileno(fp));
 
 			if (checksz(fp, sz)) {
 				logrotate(logfile, num, sz);

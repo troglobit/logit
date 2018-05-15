@@ -47,8 +47,8 @@ static int create(char *path, mode_t mode, uid_t uid, gid_t gid)
  */
 static int logrotate(char *file, int num, off_t sz)
 {
-	int cnt;
 	struct stat st;
+	int cnt;
 
 	if (stat(file, &st))
 		return 1;
@@ -210,12 +210,12 @@ static int usage(int code)
 
 int main(int argc, char *argv[])
 {
-	int c, rc, num = 5;
+	char *ident = NULL, *logfile = NULL;
+	off_t size = 200U * 1024U;
+	int log_opts = LOG_NOWAIT;
 	int facility = LOG_USER;
 	int level = LOG_INFO;
-	int log_opts = LOG_NOWAIT;
-	off_t size = 200 * 1024;
-	char *ident = NULL, *logfile = NULL;
+	int c, rc, num = 5;
 	char buf[512] = "";
 
 	while ((c = getopt(argc, argv, "f:hn:p:r:st:v")) != EOF) {

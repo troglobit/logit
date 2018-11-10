@@ -265,6 +265,8 @@ int main(int argc, char *argv[])
 			ident = PACKAGE_NAME;
 	}
 
+	openlog(ident, log_opts, facility);
+
 	if (optind < argc) {
 		size_t pos = 0, len = sizeof(buf);
 
@@ -276,8 +278,6 @@ int main(int argc, char *argv[])
 			len -= bytes;
 		}
 	}
-
-	openlog(ident, log_opts, facility);
 
 	if (logfile)
 		rc = flogit(logfile, num, size, buf, sizeof(buf));

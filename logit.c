@@ -20,7 +20,8 @@
  * THE SOFTWARE.
  */
 
-#include <config.h>
+#include "config.h"
+
 #include <errno.h>
 #include <getopt.h>
 #include <stdio.h>
@@ -165,24 +166,32 @@ static int logit(int level, char *buf, size_t len)
 
 static int logger(int optind, int argc, char *argv[])
 {
-	char buf[512] = "";
+	size_t len = 0;
+	int i;
 
-	if (optind < argc) {
-		size_t pos = 0, len = sizeof(buf);
+	for (i = optind; i < argc; i++)
+		len += strlen(argv[i]) + 1;
+	if (len < 512)
+		len = 511;
+	len++;
+	{
+		size_t pos = 0;
+		char buf[len];
 
-		while (optind < argc) {
+		memset(buf, 0, len);
+		for (i = optind; i < argc; i++) {
 			size_t bytes;
 
-			bytes = snprintf(&buf[pos], len, "%s ", argv[optind++]);
+			bytes = snprintf(&buf[pos], len, "%s ", argv[i]);
 			pos += bytes;
 			len -= bytes;
 		}
+
+		if (logfile)
+			return flogit(logfile, num, size, buf, len);
+
+		return logit(level, buf, len);
 	}
-
-	if (logfile)
-		return flogit(logfile, num, size, buf, sizeof(buf));
-
-	return logit(level, buf, sizeof(buf));
 }
 
 static int parse_prio(char *arg, int *f, int *l)

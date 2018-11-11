@@ -33,6 +33,10 @@
 
 static const char version_info[] = PACKAGE_NAME " v" PACKAGE_VERSION;
 
+static int   level   = LOG_INFO;
+static char *logfile = NULL;
+static off_t size    = 200U * 1024U;	/* 200 kiB before rotating */
+static int   num     = 5;		/* 5 rotated files to keep */
 
 static int create(char *path, mode_t mode, uid_t uid, gid_t gid)
 {
@@ -159,6 +163,28 @@ static int logit(int level, char *buf, size_t len)
 	return 0;
 }
 
+static int logger(int optind, int argc, char *argv[])
+{
+	char buf[512] = "";
+
+	if (optind < argc) {
+		size_t pos = 0, len = sizeof(buf);
+
+		while (optind < argc) {
+			size_t bytes;
+
+			bytes = snprintf(&buf[pos], len, "%s ", argv[optind++]);
+			pos += bytes;
+			len -= bytes;
+		}
+	}
+
+	if (logfile)
+		return flogit(logfile, num, size, buf, sizeof(buf));
+
+	return logit(level, buf, sizeof(buf));
+}
+
 static int parse_prio(char *arg, int *f, int *l)
 {
 	char *ptr;
@@ -210,13 +236,10 @@ static int usage(int code)
 
 int main(int argc, char *argv[])
 {
-	char *ident = NULL, *logfile = NULL;
-	off_t size = 200U * 1024U;
 	int log_opts = LOG_NOWAIT;
 	int facility = LOG_USER;
-	int level = LOG_INFO;
-	int c, rc, num = 5;
-	char buf[512] = "";
+	int c, rc;
+	char *ident = NULL;
 
 	while ((c = getopt(argc, argv, "f:hn:p:r:st:v")) != EOF) {
 		switch (c) {
@@ -266,24 +289,7 @@ int main(int argc, char *argv[])
 	}
 
 	openlog(ident, log_opts, facility);
-
-	if (optind < argc) {
-		size_t pos = 0, len = sizeof(buf);
-
-		while (optind < argc) {
-			size_t bytes;
-
-			bytes = snprintf(&buf[pos], len, "%s ", argv[optind++]);
-			pos += bytes;
-			len -= bytes;
-		}
-	}
-
-	if (logfile)
-		rc = flogit(logfile, num, size, buf, sizeof(buf));
-	else
-		rc = logit(level, buf, sizeof(buf));
-
+	rc = logger(optind, argc, argv);
 	closelog();
 
 	return rc;

@@ -164,34 +164,36 @@ static int logit(int level, char *buf, size_t len)
 	return 0;
 }
 
-static int logger(int optind, int argc, char *argv[])
+static int logger(int optind, size_t optlen, int argc, char *argv[])
+{
+	char buf[optlen];
+	size_t pos = 0;
+
+	memset(buf, 0, sizeof(buf));
+	while (optind < argc) {
+		size_t bytes;
+
+		bytes   = snprintf(&buf[pos], optlen, "%s ", argv[optind++]);
+		optlen -= bytes;
+		pos    += bytes;
+	}
+
+	if (logfile)
+		return flogit(logfile, num, size, buf, sizeof(buf));
+
+	return logit(level, buf, sizeof(buf));
+}
+
+static size_t parse_optlen(int optind, int argc, char *argv[])
 {
 	size_t len = 0;
-	int i;
 
-	for (i = optind; i < argc; i++)
-		len += strlen(argv[i]) + 1;
+	while (optind < argc)
+		len += strlen(argv[optind++]) + 1;
 	if (len < 512)
 		len = 511;
-	len++;
-	{
-		size_t pos = 0;
-		char buf[len];
 
-		memset(buf, 0, len);
-		for (i = optind; i < argc; i++) {
-			size_t bytes;
-
-			bytes = snprintf(&buf[pos], len, "%s ", argv[i]);
-			pos += bytes;
-			len -= bytes;
-		}
-
-		if (logfile)
-			return flogit(logfile, num, size, buf, len);
-
-		return logit(level, buf, len);
-	}
+	return len + 1;
 }
 
 static int parse_prio(char *arg, int *f, int *l)
@@ -247,8 +249,9 @@ int main(int argc, char *argv[])
 {
 	int log_opts = LOG_NOWAIT;
 	int facility = LOG_USER;
-	int c, rc;
 	char *ident = NULL;
+	size_t optlen;
+	int c, rc;
 
 	while ((c = getopt(argc, argv, "f:hn:p:r:st:v")) != EOF) {
 		switch (c) {
@@ -298,7 +301,8 @@ int main(int argc, char *argv[])
 	}
 
 	openlog(ident, log_opts, facility);
-	rc = logger(optind, argc, argv);
+	optlen = parse_optlen(optind, argc, argv);
+	rc = logger(optind, optlen, argc, argv);
 	closelog();
 
 	return rc;

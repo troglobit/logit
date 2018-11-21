@@ -283,7 +283,7 @@ int main(int argc, char *argv[])
 			ident = optarg;
 			break;
 
-		case 'v':	/* version */
+		case 'v':
 			fprintf(stderr, "%s\n", version_info);
 			return 0;
 

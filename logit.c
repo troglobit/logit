@@ -53,7 +53,6 @@ static int create(char *path, mode_t mode, uid_t uid, gid_t gid)
 static int logrotate(char *file, int num, off_t sz)
 {
 	struct stat st;
-	int cnt;
 
 	if (stat(file, &st))
 		return 1;
@@ -63,6 +62,7 @@ static int logrotate(char *file, int num, off_t sz)
 			size_t len = strlen(file) + 10 + 1;
 			char   ofile[len];
 			char   nfile[len];
+			int    cnt;
 
 			/* First age zipped log files */
 			for (cnt = num; cnt > 2; cnt--) {
@@ -81,8 +81,8 @@ static int logrotate(char *file, int num, off_t sz)
 				(void)rename(ofile, nfile);
 
 				if (cnt == 2 && !access(nfile, F_OK)) {
-					size_t len = 5 + strlen(nfile) + 1;
-					char cmd[len];
+					size_t clen = 5 + strlen(nfile) + 1;
+					char cmd[clen];
 
 					snprintf(cmd, len, "gzip %s", nfile);
 					system(cmd);

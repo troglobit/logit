@@ -81,10 +81,10 @@ static int logrotate(char *file, int num, off_t sz)
 				(void)rename(ofile, nfile);
 
 				if (cnt == 2 && !access(nfile, F_OK)) {
-					size_t clen = 5 + strlen(nfile) + 1;
+					size_t clen = 5 + strlen(nfile) + 13;
 					char cmd[clen];
 
-					snprintf(cmd, len, "gzip %s", nfile);
+					snprintf(cmd, len, "gzip %s 2>/dev/null", nfile);
 					system(cmd);
 
 					remove(nfile);

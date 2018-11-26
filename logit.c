@@ -39,7 +39,7 @@ static char *logfile = NULL;
 static off_t size    = 200U * 1024U;	/* 200 kiB before rotating */
 static int   num     = 5;		/* 5 rotated files to keep */
 
-static int create(char *path, mode_t mode, uid_t uid, gid_t gid)
+static int recreate(char *path, mode_t mode, uid_t uid, gid_t gid)
 {
 	return mknod(path, S_IFREG | mode, 0) || chown(path, uid, gid);
 }
@@ -94,7 +94,7 @@ static int logrotate(char *file, int num, off_t sz)
 			if (rename(file, nfile))
 				(void)truncate(file, 0);
 			else
-				create(file, st.st_mode, st.st_uid, st.st_gid);
+				recreate(file, st.st_mode, st.st_uid, st.st_gid);
 		} else {
 			if (truncate(file, 0))
 				syslog(LOG_ERR | LOG_PERROR, "Failed truncating %s during logrotate: %s", file, strerror(errno));

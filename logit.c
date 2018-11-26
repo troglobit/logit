@@ -39,9 +39,11 @@ static char *logfile = NULL;
 static off_t size    = 200U * 1024U;	/* 200 kiB before rotating */
 static int   num     = 5;		/* 5 rotated files to keep */
 
-static int recreate(char *path, mode_t mode, uid_t uid, gid_t gid)
+static void recreate(char *path, mode_t mode, uid_t uid, gid_t gid)
 {
-	return mknod(path, S_IFREG | mode, 0) || chown(path, uid, gid);
+	if (mknod(path, S_IFREG | mode, 0) || chown(path, uid, gid))
+		syslog(LOG_ERR | LOG_PERROR, "Failed re-creating %s during log rotation: %s",
+		       path, strerror(errno));
 }
 
 /*

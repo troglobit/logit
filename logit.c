@@ -85,11 +85,12 @@ static int logrotate(char *file, int num, off_t sz)
 				if (cnt == 2 && !access(nfile, F_OK)) {
 					size_t clen = 5 + strlen(nfile) + 13;
 					char cmd[clen];
+					int rc;
 
 					snprintf(cmd, len, "gzip %s 2>/dev/null", nfile);
-					system(cmd);
-
-					remove(nfile);
+					rc = system(cmd);
+					if (WIFEXITED(rc) && !WEXITSTATUS(rc))
+						remove(nfile);
 				}
 			}
 

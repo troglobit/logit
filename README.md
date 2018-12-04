@@ -2,10 +2,11 @@ logit - a tiny logger replacement
 =================================
 
 `logit` is a replacement for `logger(1)`.  It supports the same options
-as the BusyBox version, but not all options from the systemd cousin.
+as the BusyBox version, but not all options from its systemd or sysklogd
+cousins.
 
-`logit` is bundled with [Finit](https://github.com/troglobit/finit) for
-systems with a standard syslogd but without a proper logrotate daemon.
+`logit` is bundled with [Finit][] for systems with a standard syslogd
+but without a proper logrotate daemon.
 
 Its purpose is to redirect the output of programs that do not support
 `syslog(3)` to syslog or a file, with automatic log rotation.
@@ -29,3 +30,12 @@ Write MESSAGE (or stdin) to syslog, or file (with logrotate)
   -r NUM   Number of rotated files to keep, default: 5
 ```
 
+
+Origin
+------
+
+Developed primarily for [Finit][] but can be used by anyone.  The code
+is very simple and comes available for free under the very liberal MIT
+license.
+
+[Finit]: https://github.com/troglobit/finit

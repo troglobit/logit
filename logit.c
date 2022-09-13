@@ -42,8 +42,7 @@ static int   num     = 5;		/* 5 rotated files to keep */
 static void recreate(char *path, mode_t mode, uid_t uid, gid_t gid)
 {
 	if (mknod(path, S_IFREG | mode, 0) || chown(path, uid, gid))
-		syslog(LOG_ERR | LOG_PERROR, "Failed re-creating %s during log rotation: %s",
-		       path, strerror(errno));
+		syslog(LOG_ERR | LOG_PERROR, "Failed recreating %s: %s", path, strerror(errno));
 }
 
 /*
@@ -101,7 +100,7 @@ static int logrotate(char *file, int num, off_t sz)
 		} else {
 		fallback:
 			if (truncate(file, 0))
-				syslog(LOG_ERR | LOG_PERROR, "Failed truncating %s during logrotate: %s",
+				syslog(LOG_ERR | LOG_PERROR, "Failed truncating %s: %s",
 				       file, strerror(errno));
 		}
 	}

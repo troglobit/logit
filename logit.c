@@ -79,7 +79,11 @@ static int logrotate(char *file, int num, off_t sz)
 				snprintf(nfile, len, "%s.%d", file, cnt);
 
 				/* May fail because ofile doesn't exist yet, ignore. */
-				(void)rename(ofile, nfile);
+				if (rename(ofile, nfile) && errno != ENOENT) {
+					syslog(LOG_ERR | LOG_PERROR, "Failed logrotate %s: %s",
+					       ofile, strerror(errno));
+					continue;
+				}
 
 				if (cnt == 2 && !access(nfile, F_OK)) {
 					size_t clen = 5 + strlen(nfile) + 13;
@@ -89,14 +93,13 @@ static int logrotate(char *file, int num, off_t sz)
 					snprintf(cmd, len, "gzip %s 2>/dev/null", nfile);
 					rc = system(cmd);
 					if (WIFEXITED(rc) && !WEXITSTATUS(rc))
-						remove(nfile);
+						(void)remove(nfile);
 				}
 			}
 
 			if (rename(file, nfile))
 				goto fallback;
-			else
-				recreate(file, st.st_mode, st.st_uid, st.st_gid);
+			recreate(file, st.st_mode, st.st_uid, st.st_gid);
 		} else {
 		fallback:
 			if (truncate(file, 0))
@@ -202,28 +205,37 @@ static size_t parse_optlen(int optind, int argc, char *argv[])
 
 static int parse_prio(char *arg, int *f, int *l)
 {
-	char *ptr;
+	char *duparg = strdup(arg);
+	char *ptr, *prio;
 
-	ptr = strchr(arg, '.');
+	if (!duparg)
+		prio = arg;
+	else
+		prio = duparg;
+
+	ptr = strchr(prio, '.');
 	if (ptr) {
 		*ptr++ = 0;
 
 		for (int i = 0; facilitynames[i].c_name; i++) {
-			if (!strcmp(facilitynames[i].c_name, arg)) {
+			if (!strcmp(facilitynames[i].c_name, prio)) {
 				*f = facilitynames[i].c_val;
 				break;
 			}
 		}
 
-		arg = ptr;
+		prio = ptr;
 	}
 
 	for (int i = 0; prioritynames[i].c_name; i++) {
-		if (!strcmp(prioritynames[i].c_name, arg)) {
+		if (!strcmp(prioritynames[i].c_name, prio)) {
 			*l = prioritynames[i].c_val;
 			break;
 		}
 	}
+
+	if (duparg != arg)
+		free(duparg);
 
 	return 0;
 }
